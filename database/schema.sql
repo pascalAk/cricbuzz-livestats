@@ -1,121 +1,122 @@
--- ============================================================
--- Cricbuzz LiveStats - Database Schema
--- Compatible with SQLite, PostgreSQL, and MySQL
--- ============================================================
+-- ============================================
+-- CRICBUZZ LIVESTATS - DATABASE SCHEMA
+-- ============================================
 
-CREATE TABLE IF NOT EXISTS teams (
-    team_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    team_name TEXT    NOT NULL,
-    country   TEXT    NOT NULL,
-    short_name TEXT
+USE cricbuzz_db;
+
+-- 1. TEAMS TABLE
+CREATE TABLE teams (
+    team_id INT AUTO_INCREMENT PRIMARY KEY,
+    team_name VARCHAR(100) NOT NULL,
+    short_name VARCHAR(10),
+    country VARCHAR(100),
+    team_type ENUM('international', 'domestic') DEFAULT 'international',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS venues (
-    venue_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    venue_name TEXT    NOT NULL,
-    city       TEXT    NOT NULL,
-    country    TEXT    NOT NULL,
-    capacity   INTEGER
+-- 2. VENUES TABLE
+CREATE TABLE venues (
+    venue_id INT AUTO_INCREMENT PRIMARY KEY,
+    venue_name VARCHAR(200) NOT NULL,
+    city VARCHAR(100),
+    country VARCHAR(100),
+    capacity INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS series (
-    series_id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    series_name   TEXT    NOT NULL,
-    host_country  TEXT,
-    match_type    TEXT,
-    start_date    TEXT,
-    end_date      TEXT,
-    total_matches INTEGER
+-- 3. PLAYERS TABLE
+CREATE TABLE players (
+    player_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(200) NOT NULL,
+    country VARCHAR(100),
+    date_of_birth DATE,
+    playing_role ENUM('Batsman', 'Bowler', 'All-rounder', 'Wicket-keeper'),
+    batting_style VARCHAR(50),
+    bowling_style VARCHAR(100),
+    team_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES teams(team_id)
 );
 
-CREATE TABLE IF NOT EXISTS players (
-    player_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-    full_name    TEXT    NOT NULL,
-    country      TEXT    NOT NULL,
-    playing_role TEXT,
-    batting_style TEXT,
-    bowling_style TEXT,
-    date_of_birth TEXT
+-- 4. SERIES TABLE
+CREATE TABLE series (
+    series_id INT AUTO_INCREMENT PRIMARY KEY,
+    series_name VARCHAR(200) NOT NULL,
+    host_country VARCHAR(100),
+    match_type ENUM('Test', 'ODI', 'T20I', 'T20', 'Other'),
+    start_date DATE,
+    end_date DATE,
+    total_matches INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS matches (
-    match_id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    series_id         INTEGER REFERENCES series(series_id),
-    match_description TEXT,
-    team1_id          INTEGER REFERENCES teams(team_id),
-    team2_id          INTEGER REFERENCES teams(team_id),
-    venue_id          INTEGER REFERENCES venues(venue_id),
-    match_date        TEXT,
-    match_format      TEXT,
-    status            TEXT    DEFAULT 'Completed',
-    winning_team_id   INTEGER REFERENCES teams(team_id),
-    victory_margin    INTEGER,
-    victory_type      TEXT,
-    toss_winner_id    INTEGER REFERENCES teams(team_id),
-    toss_decision     TEXT
+-- 5. MATCHES TABLE
+CREATE TABLE matches (
+    match_id INT AUTO_INCREMENT PRIMARY KEY,
+    series_id INT,
+    match_description VARCHAR(300),
+    team1_id INT,
+    team2_id INT,
+    venue_id INT,
+    match_date DATE,
+    match_type ENUM('Test', 'ODI', 'T20I', 'T20', 'Other'),
+    status ENUM('upcoming', 'live', 'completed') DEFAULT 'upcoming',
+    toss_winner_id INT,
+    toss_decision ENUM('bat', 'bowl'),
+    winner_id INT,
+    victory_margin VARCHAR(100),
+    victory_type ENUM('runs', 'wickets', 'draw', 'tie', 'no result'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (series_id) REFERENCES series(series_id),
+    FOREIGN KEY (team1_id) REFERENCES teams(team_id),
+    FOREIGN KEY (team2_id) REFERENCES teams(team_id),
+    FOREIGN KEY (venue_id) REFERENCES venues(venue_id),
+    FOREIGN KEY (toss_winner_id) REFERENCES teams(team_id),
+    FOREIGN KEY (winner_id) REFERENCES teams(team_id)
 );
 
-CREATE TABLE IF NOT EXISTS batting_performances (
-    perf_id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    match_id        INTEGER REFERENCES matches(match_id),
-    player_id       INTEGER REFERENCES players(player_id),
-    innings_number  INTEGER DEFAULT 1,
-    runs_scored     INTEGER DEFAULT 0,
-    balls_faced     INTEGER DEFAULT 0,
-    batting_position INTEGER,
-    fours           INTEGER DEFAULT 0,
-    sixes           INTEGER DEFAULT 0,
-    strike_rate     REAL,
-    is_not_out      INTEGER DEFAULT 0
+-- 6. PLAYER STATS TABLE
+CREATE TABLE player_stats (
+    stat_id INT AUTO_INCREMENT PRIMARY KEY,
+    player_id INT,
+    match_id INT,
+    format ENUM('Test', 'ODI', 'T20I', 'T20', 'Other'),
+    innings INT DEFAULT 1,
+    batting_position INT,
+    runs_scored INT DEFAULT 0,
+    balls_faced INT DEFAULT 0,
+    fours INT DEFAULT 0,
+    sixes INT DEFAULT 0,
+    strike_rate DECIMAL(6,2),
+    overs_bowled DECIMAL(4,1),
+    runs_conceded INT DEFAULT 0,
+    wickets_taken INT DEFAULT 0,
+    economy_rate DECIMAL(5,2),
+    catches INT DEFAULT 0,
+    stumpings INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (player_id) REFERENCES players(player_id),
+    FOREIGN KEY (match_id) REFERENCES matches(match_id)
 );
 
-CREATE TABLE IF NOT EXISTS bowling_performances (
-    perf_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    match_id       INTEGER REFERENCES matches(match_id),
-    player_id      INTEGER REFERENCES players(player_id),
-    innings_number INTEGER DEFAULT 1,
-    overs_bowled   REAL    DEFAULT 0,
-    wickets_taken  INTEGER DEFAULT 0,
-    runs_conceded  INTEGER DEFAULT 0,
-    economy_rate   REAL,
-    maiden_overs   INTEGER DEFAULT 0
+-- 7. CAREER STATS TABLE
+CREATE TABLE career_stats (
+    career_id INT AUTO_INCREMENT PRIMARY KEY,
+    player_id INT,
+    format ENUM('Test', 'ODI', 'T20I', 'T20', 'Other'),
+    matches_played INT DEFAULT 0,
+    total_runs INT DEFAULT 0,
+    highest_score INT DEFAULT 0,
+    batting_average DECIMAL(6,2),
+    batting_sr DECIMAL(6,2),
+    centuries INT DEFAULT 0,
+    fifties INT DEFAULT 0,
+    total_wickets INT DEFAULT 0,
+    bowling_average DECIMAL(6,2),
+    economy_rate DECIMAL(5,2),
+    best_bowling VARCHAR(10),
+    total_catches INT DEFAULT 0,
+    total_stumpings INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
-
-CREATE TABLE IF NOT EXISTS fielding_performances (
-    perf_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-    match_id   INTEGER REFERENCES matches(match_id),
-    player_id  INTEGER REFERENCES players(player_id),
-    catches    INTEGER DEFAULT 0,
-    stumpings  INTEGER DEFAULT 0,
-    run_outs   INTEGER DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS player_career_stats (
-    stat_id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    player_id        INTEGER REFERENCES players(player_id),
-    format           TEXT,
-    matches_played   INTEGER DEFAULT 0,
-    innings          INTEGER DEFAULT 0,
-    runs_scored      INTEGER DEFAULT 0,
-    highest_score    INTEGER DEFAULT 0,
-    batting_average  REAL,
-    strike_rate      REAL,
-    centuries        INTEGER DEFAULT 0,
-    half_centuries   INTEGER DEFAULT 0,
-    wickets_taken    INTEGER DEFAULT 0,
-    bowling_average  REAL,
-    economy_rate     REAL,
-    catches          INTEGER DEFAULT 0,
-    stumpings        INTEGER DEFAULT 0,
-    UNIQUE(player_id, format)
-);
-
--- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_matches_date        ON matches(match_date);
-CREATE INDEX IF NOT EXISTS idx_matches_format      ON matches(match_format);
-CREATE INDEX IF NOT EXISTS idx_batting_match       ON batting_performances(match_id);
-CREATE INDEX IF NOT EXISTS idx_batting_player      ON batting_performances(player_id);
-CREATE INDEX IF NOT EXISTS idx_bowling_match       ON bowling_performances(match_id);
-CREATE INDEX IF NOT EXISTS idx_bowling_player      ON bowling_performances(player_id);
-CREATE INDEX IF NOT EXISTS idx_career_player       ON player_career_stats(player_id);
-CREATE INDEX IF NOT EXISTS idx_career_format       ON player_career_stats(format);
